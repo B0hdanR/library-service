@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from books.models import Book
 
+
 def sample_book(**params):
     defaults = {
         "title": "The Hobbit",

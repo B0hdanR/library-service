@@ -15,7 +15,10 @@ from books.serializers import BookSerializer
     list=extend_schema(
         tags=["Books"],
         summary="List books",
-        description="Retrieve a list of all books available in the library. Available to anyone, including unauthenticated users.",
+        description=(
+                "Retrieve a list of all books available in the library. "
+                "Available to anyone, including unauthenticated users."
+        ),
         responses={200: BookSerializer(many=True)},
         examples=[
             OpenApiExample(

@@ -64,7 +64,7 @@ class UnauthenticatedBorrowingAPITests(TestCase):
 
     def test_borrowing_detail_unauthorized(self):
         borrowing = sample_borrowing(
-                user=get_user_model().objects.create_user(
+            user=get_user_model().objects.create_user(
                 email="user@test.com",
                 password="testpassword123",
             )
@@ -115,7 +115,7 @@ class AuthenticatedBorrowingAPITests(TestCase):
 
         serializer = BorrowingListSerializer(borrowing)
 
-        self.assertEqual(response.status_code,status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.assertIn(serializer.data, response.data)
 
@@ -166,7 +166,7 @@ class AuthenticatedBorrowingAPITests(TestCase):
         self.assertEqual(response.data["book"]["cover"], book.cover)
         self.assertEqual(response.data["book"]["inventory"], 5)
         self.assertEqual(response.data["book"]["daily_fee"], "1.50")
-        self.assertEqual( response.data["user"]["email"], self.user.email)
+        self.assertEqual(response.data["user"]["email"], self.user.email)
 
     def test_borrowing_detail_not_found(self):
         response = self.client.get(detail_url(99999))
