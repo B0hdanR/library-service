@@ -12,8 +12,10 @@ from books.serializers import BookSerializer
 
 BOOKS_URL = reverse("books:book-list")
 
+
 def detail_url(book_id):
     return reverse("books:book-detail", args=[book_id])
+
 
 def sample_book(**params):
     defaults = {

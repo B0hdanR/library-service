@@ -1,4 +1,9 @@
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiResponse,
+    OpenApiExample,
+)
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
@@ -12,11 +17,44 @@ from payments.serializers import (
 @extend_schema_view(
     list=extend_schema(
         tags=["Payments"],
-        description="Retrieve payments available to the current user.",
+        summary="List payments",
+        description=(
+            "Returns payments belonging to the current user. "
+            "Admin users see payments for all users."
+        ),
+        responses={
+            200: PaymentListSerializer(many=True),
+            401: OpenApiResponse(description="Authentication credentials were not provided."),
+        },
+        examples=[
+            OpenApiExample(
+                "Example response",
+                value=[
+                    {
+                        "id": 1,
+                        "status": "PENDING",
+                        "type": "PAYMENT",
+                        "borrowing_id": 3,
+                        "money_to_pay": "10.50",
+                    }
+                ],
+                response_only=True,
+            ),
+        ],
     ),
     retrieve=extend_schema(
         tags=["Payments"],
-        description="Retrieve detailed information about a specific payment.",
+        summary="Retrieve a payment",
+        description=(
+            "Returns detailed information about a specific payment, "
+            "including the Stripe session URL and ID. Only the owner "
+            "of the related borrowing or an admin can access it."
+        ),
+        responses={
+            200: PaymentDetailSerializer,
+            401: OpenApiResponse(description="Authentication credentials were not provided."),
+            404: OpenApiResponse(description="Payment not found or not accessible to this user."),
+        },
     ),
 )
 class PaymentViewSet(viewsets.ReadOnlyModelViewSet):

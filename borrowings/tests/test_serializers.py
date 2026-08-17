@@ -11,6 +11,7 @@ from borrowings.serializers import (
     BorrowingDetailSerializer,
     BorrowingListSerializer,
 )
+from payments.models import Payment
 
 
 def sample_book(**params):
@@ -41,7 +42,8 @@ def sample_borrowing(user, **params):
 class BorrowingSerializerTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            email="user@test.com", password="testpassword123"
+            email="user@test.com",
+            password="testpassword123",
         )
 
     def test_list_serializer_contains_book_title_and_user_email(self):
@@ -57,26 +59,11 @@ class BorrowingSerializerTests(TestCase):
 
         serializer = BorrowingDetailSerializer(borrowing)
 
-        self.assertEqual(
-            serializer.data["book"]["title"],
-            "The Hobbit",
-        )
-        self.assertEqual(
-            serializer.data["book"]["author"],
-            "J.R.R. Tolkien",
-        )
-        self.assertEqual(
-            serializer.data["book"]["cover"],
-            Book.CoverType.HARD,
-        )
-        self.assertEqual(
-            serializer.data["book"]["inventory"],
-            5,
-        )
-        self.assertEqual(
-            serializer.data["book"]["daily_fee"],
-            "1.50",
-        )
+        self.assertEqual(serializer.data["book"]["title"], "The Hobbit")
+        self.assertEqual(serializer.data["book"]["author"], "J.R.R. Tolkien")
+        self.assertEqual(serializer.data["book"]["cover"], Book.CoverType.HARD)
+        self.assertEqual(serializer.data["book"]["inventory"], 5)
+        self.assertEqual(serializer.data["book"]["daily_fee"], "1.50")
 
     def test_detail_serializer_contains_user_details(self):
         borrowing = sample_borrowing(user=self.user)
@@ -88,3 +75,35 @@ class BorrowingSerializerTests(TestCase):
         self.assertEqual(serializer.data["user"]["first_name"], "")
         self.assertEqual(serializer.data["user"]["last_name"], "")
         self.assertFalse(serializer.data["user"]["is_staff"])
+
+    def test_detail_serializer_contains_payments_in_current_borrowing(self):
+        borrowing = sample_borrowing(user=self.user)
+
+        payment = Payment.objects.create(
+            status=Payment.Status.PENDING,
+            type=Payment.Type.PAYMENT,
+            borrowing=borrowing,
+            session_url="https://checkout.stripe.com/c/pay/cs_test_fake",
+            session_id="cs_test_fake",
+            money_to_pay=Decimal("10.50"),
+        )
+
+        serializer = BorrowingDetailSerializer(borrowing)
+
+        self.assertEqual(len(serializer.data["payments"]), 1)
+
+        payment_data = serializer.data["payments"][0]
+
+        self.assertEqual(payment_data["id"], payment.id)
+        self.assertEqual(payment_data["status"], Payment.Status.PENDING)
+        self.assertEqual(payment_data["session_url"], payment.session_url)
+        self.assertEqual(payment_data["session_id"], payment.session_id)
+        self.assertEqual(payment_data["money_to_pay"], "10.50")
+        self.assertNotIn("borrowing", payment_data)
+
+    def test_detail_serializer_payments_empty_when_none_created(self):
+        borrowing = sample_borrowing(user=self.user)
+
+        serializer = BorrowingDetailSerializer(borrowing)
+
+        self.assertEqual(serializer.data["payments"], [])

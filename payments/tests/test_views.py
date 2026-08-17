@@ -118,7 +118,7 @@ class AuthenticatedPaymentAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.assertEqual(len(response.data), 2)
-        self.assertIn( PaymentListSerializer(payment1).data, response.data)
+        self.assertIn(PaymentListSerializer(payment1).data, response.data)
         self.assertIn(PaymentListSerializer(payment2).data, response.data)
 
     def test_payment_create_not_allowed(self):
@@ -188,6 +188,6 @@ class AdminPaymentAPITests(TestCase):
         self.assertEqual(response.data, PaymentDetailSerializer(payment).data)
 
     def test_admin_cannot_create_payment(self):
-        response = self.client.post(PAYMENTS_URL,{})
+        response = self.client.post(PAYMENTS_URL, {})
 
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
