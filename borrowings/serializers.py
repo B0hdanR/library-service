@@ -5,6 +5,8 @@ from rest_framework import serializers
 from books.models import Book
 from books.serializers import BookSerializer
 from borrowings.models import Borrowing
+from payments.serializers import PaymentDetailSerializer
+from payments.stripe_service import create_stripe_session
 from users.serializers import UserSerializer
 
 
@@ -24,9 +26,20 @@ class BorrowingListSerializer(serializers.ModelSerializer):
         )
 
 
+class BorrowingPaymentSerializer(PaymentDetailSerializer):
+    class Meta(PaymentDetailSerializer.Meta):
+        fields = tuple(
+            field
+            for field in PaymentDetailSerializer.Meta.fields
+            if field != "borrowing"
+        )
+        read_only_fields = fields
+
+
 class BorrowingDetailSerializer(serializers.ModelSerializer):
     book = BookSerializer(read_only=True)
     user = UserSerializer(read_only=True)
+    payments = BorrowingPaymentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Borrowing
@@ -37,6 +50,7 @@ class BorrowingDetailSerializer(serializers.ModelSerializer):
             "actual_return_date",
             "book",
             "user",
+            "payments",
         )
 
 
@@ -77,8 +91,12 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
             book.inventory -= 1
             book.save(update_fields=["inventory"])
 
-            return Borrowing.objects.create(
+            borrowing = Borrowing.objects.create(
                 user=user,
                 book=book,
                 **validated_data,
             )
+
+            create_stripe_session(borrowing)
+
+            return borrowing
