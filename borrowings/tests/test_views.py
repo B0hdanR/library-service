@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -15,7 +16,7 @@ from borrowings.serializers import (
     BorrowingDetailSerializer,
     BorrowingListSerializer,
 )
-
+from payments.models import Payment
 
 BORROWINGS_URL = reverse("borrowings:borrowing-list")
 
@@ -97,6 +98,16 @@ class AuthenticatedBorrowingAPITests(TestCase):
 
         self.client.force_authenticate(self.user)
 
+        self.stripe_patcher = patch(
+            "payments.stripe_service.stripe.checkout.Session.create"
+        )
+        mock_session_create = self.stripe_patcher.start()
+        mock_session_create.return_value = MagicMock(
+            url="https://checkout.stripe.com/c/pay/cs_test_fake",
+            id="cs_test_fake",
+        )
+        self.addCleanup(self.stripe_patcher.stop)
+
     def test_borrowing_list(self):
         borrowing = sample_borrowing(user=self.user)
 
@@ -136,7 +147,6 @@ class AuthenticatedBorrowingAPITests(TestCase):
         self.assertEqual(len(response.data), 2)
 
         self.assertIn(serializer1.data, response.data)
-
         self.assertIn(serializer2.data, response.data)
 
     def test_borrowing_detail_contains_full_book_information(self):
@@ -187,6 +197,27 @@ class AuthenticatedBorrowingAPITests(TestCase):
         book.refresh_from_db()
 
         self.assertEqual(book.inventory, 4)
+
+    def test_create_borrowing_creates_stripe_payment(self):
+        book = sample_book(inventory=5, daily_fee=Decimal("1.50"))
+
+        payload = {
+            "book": book.id,
+            "expected_return_date": timezone.now().date() + timedelta(days=7),
+        }
+
+        response = self.client.post(BORROWINGS_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        borrowing = Borrowing.objects.get(id=response.data["id"])
+        payment = Payment.objects.get(borrowing=borrowing)
+
+        self.assertEqual(payment.status, Payment.Status.PENDING)
+        self.assertEqual(payment.type, Payment.Type.PAYMENT)
+        self.assertEqual(payment.money_to_pay, Decimal("10.50"))
+        self.assertEqual(payment.session_url, "https://checkout.stripe.com/c/pay/cs_test_fake")
+        self.assertEqual(payment.session_id, "cs_test_fake")
 
     def test_create_borrowing_when_inventory_zero(self):
         book = sample_book(inventory=0)
