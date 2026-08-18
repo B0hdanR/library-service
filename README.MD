@@ -18,7 +18,7 @@ An online management system for a library's book borrowings, built with Django R
 ## Tech Stack
 
 - Python / Django / Django REST Framework
-- SQLite
+- SQLite (local development) / PostgreSQL (Docker)
 - JWT authentication via `djangorestframework-simplejwt`
 - Stripe (`stripe` Python SDK) for payment sessions
 - `python-dotenv` for environment configuration
@@ -77,13 +77,23 @@ cp .env.sample .env
 ```env
 SECRET_KEY=your_django_secret_key
 STRIPE_SECRET_KEY=sk_test_your_stripe_test_key
+
+DEBUG=True
+
+POSTGRES_DB=library_service
+POSTGRES_USER=library_user
+POSTGRES_PASSWORD=your_password
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
 ```
 
 > `.env` is git-ignored — never commit real secrets. 
 > `STRIPE_SECRET_KEY` must be a **test-mode** key (`sk_test_...`);
+> PostgreSQL is used by default. To run locally without Docker (against SQLite instead), comment out the five POSTGRES_* lines above.
 
 ### 3. Run migrations and start the server
 
+This uses SQLite for local development — comment out the `POSTGRES_*` variables in `.env` first, otherwise Django will try to connect to a `db` host that only exists inside Docker.
 ```bash
 python manage.py migrate
 python manage.py createsuperuser
@@ -91,6 +101,21 @@ python manage.py runserver
 ```
 
 API is available at `http://127.0.0.1:8000/api/doc/swagger/`.
+
+### 4. Running with Docker
+
+```bash
+docker-compose build
+docker-compose up
+```
+
+The app will be available at `http://127.0.0.1:8000/api/doc/swagger/`. Migrations run automatically on container startup.
+
+To create an admin user:
+
+```bash
+docker-compose exec app python manage.py createsuperuser
+```
 
 ## Authentication
 
